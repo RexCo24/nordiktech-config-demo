@@ -1,80 +1,64 @@
 ---
 - name: Nordiktech nginx Playbook
   hosts: local
+  become: yes
   tasks:
 
-    - name: Packet install
+    - name: Install nginx
       apt:
         name: nginx
         state: present
-      become: yes
-
-    - name: Star Service + Autostart
-      service:
-        name: nginx
-        state: started
-        enabled: yes
-      become: yes
-
-    - name: Config Deploy
-      copy:
-        src: nginx.conf
-        dest: /etc/nginx/sites-available/nordiktech
-      become: yes
-
-    - name: Site Activation
-      file:
-        src: /etc/nginx/sites-available/nordiktech
-        dest: /etc/nginx/sites-enabled/nordiktech
-        state: link
-      become: yes
-
-    - name: Site Reloade
-      service:
-        name: nginx
-        state: reloaded
-      become: yes
-
-    - name: Copy Flask Service
-      copy:
-        src: flask.service
-        dest: /etc/systemd/system/flask.service
-      become: yes
-
-    - name: Systemd Daemon Reload
-      ansible.builtin.systemd_service:
-        name: flask.service
-        state: restarted
-        enabled: true
-        daemon_reload: true
-      become: yes
 
     - name: Install python3-venv
       apt:
         name: python3.12-venv
         state: present
-      become: yes
 
     - name: Create app directory
       file:
         path: /opt/inventory
         state: directory
-      become: yes
 
     - name: Copy app.py
       copy:
         src: app.py
         dest: /opt/inventory/app.py
-      become: yes
 
     - name: Create venv
       command: python3 -m venv /opt/inventory/venv
       args:
         creates: /opt/inventory/venv
-      become: yes
 
     - name: Install Flask in venv
       pip:
         name: flask
         virtualenv: /opt/inventory/venv
-      become: yes
+
+    - name: Deploy nginx config
+      copy:
+        src: nginx.conf
+        dest: /etc/nginx/sites-available/nordiktech
+
+    - name: Enable nginx site
+      file:
+        src: /etc/nginx/sites-available/nordiktech
+        dest: /etc/nginx/sites-enabled/nordiktech
+        state: link
+
+    - name: Start nginx and enable autostart
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: Deploy Flask systemd service
+      copy:
+        src: flask.service
+        dest: /etc/systemd/system/flask.service
+
+    - name: Start Flask service
+      ansible.builtin.systemd_service:
+        name: flask.service
+        state: started
+        enabled: true
+        daemon_reload: true
